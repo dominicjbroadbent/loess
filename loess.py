@@ -24,7 +24,7 @@ def make_poly_pred_(x, y, anchor, weights, degree):
     
     return y_hat
 
-def interpolate_anchors(x, y_hat, anchors):
+def interpolate_between_anchors(x, y_hat, anchors):
     y_hat_interpolated = np.zeros(x.shape[0])
     for i in range(x.shape[0]):
         if x[i] == anchors.min():
@@ -105,7 +105,7 @@ def fit_loess(x, y, anchors = None, degree = 2, kernel = rbf_kernel, alpha = 1, 
             # Interpolate linearly between anchor points if they exist
             # and are not just x
             if anchor_interpolate_flag:
-                y_hat = interpolate_anchors(x, y_hat, anchors)
+                y_hat = interpolate_between_anchors(x, y_hat, anchors)
                 
             # Stop recomputing robust weights after appropriate number of iterations
             if (robust_iteration + 1) != robust_iters:
@@ -130,7 +130,7 @@ def fit_loess(x, y, anchors = None, degree = 2, kernel = rbf_kernel, alpha = 1, 
             # Interpolate linearly between anchor points if they exist
             # and are not just x
             if anchor_interpolate_flag:
-                y_hat = interpolate_anchors(x, y_hat, anchors)
+                y_hat = interpolate_between_anchors(x, y_hat, anchors)
                 
             # Stop recomputing robust weights after appropriate number of iterations
             if (robust_iteration + 1) != robust_iters:
