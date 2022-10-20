@@ -4,7 +4,7 @@ from bisect import bisect
 from scipy.spatial.distance import cdist
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
-
+from tqdm.notebook import tqdm
 from kernels import rbf_kernel
 
 def make_poly_pred_(x, y, anchor, weights, degree):
@@ -57,16 +57,22 @@ def interpolate_between_anchors(x, y_hat, anchors):
     return y_hat_interpolated
 
 def compute_robust_weights_(y, y_hat):
+    # Compute residuals
     residuals = y - y_hat
+    # Comput the median of the absolute residuals
     s = np.median(np.abs(residuals))
+    # Compute robust weights according to Cleveland 1979
     robust_weights = np.clip(residuals / (6.0 * s), -1, 1)
     return (1 - robust_weights ** 2) ** 2
 
 def fit_loess(x, y, anchors = None, degree = 2, kernel = rbf_kernel, alpha = 1, frac = None, robust_iters = 1):
+    # Error handling
     assert degree >= 0 and isinstance(degree, int), 'degree must be a non-negative integer'
     
     if frac is not None:
         assert  0 < frac < 1, 'frac must be in (0, 1)'
+        # Compute the fraction to take
+        m = int(frac * y.shape[0])
         
     assert robust_iters > 0 and isinstance(robust_iters, int), 'robust_iters must be a positive integer'
     
@@ -74,66 +80,51 @@ def fit_loess(x, y, anchors = None, degree = 2, kernel = rbf_kernel, alpha = 1, 
     if len(x.shape) == 1:
         x = x.reshape(-1, 1)
     
+    # If anchors are supplied, ensure they are 2-dimensional
     # If we don't supply regression anchors, set every point to be one
-    anchor_interpolate_flag = True
-    if anchors is None:
-        anchors = x
-        anchor_interpolate_flag = False
-    elif len(anchors.shape) == 1:
-        anchors = anchors.reshape(-1, 1)
-    
-    # Compute euclidean distances between each regression anchor and the rest of the data
-    dists = cdist(anchors, x, 'euclidean')   
+    if anchors is not None:
+        anchor_interpolate_flag = True
+        if len(anchors.shape) == 1:
+            anchors = anchors.reshape(-1, 1)
+    else:
+        anchors = x 
+        anchor_interpolate_flag = False    
     
     # Initialise robust weights as ones
     robust_weights = np.ones(y.shape[0])
-    
+
     # Array to hold predictions for the regression anchors
     y_hat = np.zeros(anchors.shape[0])
-    if frac is None:
-        # Compute the weights using all of the distances 
-        weights = kernel( dists / alpha )
-        
-        for robust_iteration in range(robust_iters):
-            # For each regression anchor, ignore (approximately) zero weights and predict
-            for i in range(anchors.shape[0]):
-                idcs = np.where(robust_weights * weights[i, :] > 1e-10)[0]
-                y_hat[i] = make_poly_pred_(x[idcs, :], y[idcs],
-                                           anchors[i, :], weights[i, idcs],
-                                           degree)
-            
-            # Interpolate linearly between anchor points if they exist
-            # and are not just x
-            if anchor_interpolate_flag:
-                y_hat = interpolate_between_anchors(x, y_hat, anchors)
-                
-            # Stop recomputing robust weights after appropriate number of iterations
-            if (robust_iteration + 1) != robust_iters:
-                robust_weights = compute_robust_weights_(y, y_hat)
-                
-    else:
-        # Compute the fraction to take
-        m = int(frac * y.shape[0])
 
-        # Get the indices for the sorted distances
-        frac_idcs = np.argsort(dists, axis = 1)[:, :m]
-        
-        for robust_iteration in range(robust_iters):
-            # For each regression anchor, compute the sorted weights and predict
-            for i in range(anchors.shape[0]):
-                idcs = frac_idcs[i, :]
-                weights = robust_weights[idcs] * kernel( dists[i, idcs] / alpha )
-                y_hat[i] = make_poly_pred_(x[idcs, :], y[idcs],
-                                           anchors[i, :], weights,
-                                           degree)
-            
-            # Interpolate linearly between anchor points if they exist
-            # and are not just x
-            if anchor_interpolate_flag:
-                y_hat = interpolate_between_anchors(x, y_hat, anchors)
-                
-            # Stop recomputing robust weights after appropriate number of iterations
-            if (robust_iteration + 1) != robust_iters:
-                robust_weights = compute_robust_weights_(y, y_hat)
+    for robust_iteration in range(robust_iters):
+        for i in tqdm(range(anchors.shape[0])):
+            # Compute distance from anchor point to x
+            dists = cdist(anchors[i, :].reshape(-1, 1), x, 'euclidean')[0, :]
+
+            # Compute the weights according to the chosen method
+            if frac is not None:
+                # Get the indices for the m smallest distances
+                idcs = np.argsort(dists)[:m]
+                # Compute the weights for the m closest points
+                weights = robust_weights[idcs] * kernel( dists[idcs] / alpha )
+            else:
+                # Compute the weights using all of the distances 
+                weights = kernel( dists / alpha )
+                # Choose those (approximately) non-zero weights
+                idcs = np.where(robust_weights * weights > 1e-10)[0]
+                weights = weights[idcs]
+
+            # Make a prediction using the computed weights
+            y_hat[i] = make_poly_pred_(x[idcs, :], y[idcs],
+                                       anchors[i, :], weights, degree)
+
+        # Interpolate linearly between anchor points if they exist
+        # and are not just x
+        if anchor_interpolate_flag:
+            y_hat = interpolate_between_anchors(x, y_hat, anchors)
+
+        # Stop recomputing robust weights after appropriate number of iterations
+        if (robust_iteration + 1) != robust_iters:
+            robust_weights = compute_robust_weights_(y, y_hat)
 
     return y_hat
