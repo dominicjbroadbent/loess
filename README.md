@@ -1,4 +1,4 @@
-
+# Loess
 
 ## Environment
 The environment is being managed by conda with configuration stored in the 'env.yml' file. To create your environment just use `conda env create --file env.yml` from the base of the repository. To update using a new config use `conda env update --file env.yml --prune`.
