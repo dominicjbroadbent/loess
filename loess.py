@@ -17,6 +17,7 @@ def make_poly_pred_(x, y, anchor, weights, degree):
     else:
         anchor = anchor.reshape(1, -1)
     anchor_ = PolynomialFeatures(degree).fit_transform(anchor)
+    
     # Fit the weighted linear regression model on the data
     model = LinearRegression().fit(x_, y, sample_weight = weights)
     
