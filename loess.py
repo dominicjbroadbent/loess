@@ -5,6 +5,7 @@ from scipy.spatial.distance import cdist
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from tqdm.notebook import tqdm
+
 from kernels import rbf_kernel
 
 def make_poly_pred_(x, y, anchor, weights, degree):
