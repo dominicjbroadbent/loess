@@ -5,6 +5,7 @@ from scipy.spatial.distance import cdist
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from tqdm.notebook import tqdm
+
 from kernels import rbf_kernel
 
 def make_poly_pred_(x, y, anchor, weights, degree):
@@ -16,6 +17,7 @@ def make_poly_pred_(x, y, anchor, weights, degree):
     else:
         anchor = anchor.reshape(1, -1)
     anchor_ = PolynomialFeatures(degree).fit_transform(anchor)
+    
     # Fit the weighted linear regression model on the data
     model = LinearRegression().fit(x_, y, sample_weight = weights)
     
@@ -59,10 +61,13 @@ def interpolate_between_anchors(x, y_hat, anchors):
 def compute_robust_weights_(y, y_hat):
     # Compute residuals
     residuals = y - y_hat
-    # Comput the median of the absolute residuals
+    
+    # Compute the median of the absolute residuals
     s = np.median(np.abs(residuals))
+    
     # Compute robust weights according to Cleveland 1979
     robust_weights = np.clip(residuals / (6.0 * s), -1, 1)
+    
     return (1 - robust_weights ** 2) ** 2
 
 def fit_loess(x, y, anchors = None, degree = 2, kernel = rbf_kernel, alpha = 1, frac = None, robust_iters = 1):

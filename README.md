@@ -1,4 +1,5 @@
-
+# Loess
+An implementation of LOESS following [https://sites.stat.washington.edu/courses/stat527/s13/readings/Cleveland_JASA_1979.pdf] for one-dimensional regression. Also works for higher dimensional data but without robust capabilities.
 
 ## Environment
 The environment is being managed by conda with configuration stored in the 'env.yml' file. To create your environment just use `conda env create --file env.yml` from the base of the repository. To update using a new config use `conda env update --file env.yml --prune`.
